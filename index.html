@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Real-Time Chat with Username</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="chat-container">
+    <header>
+      <h2>💬 Real-Time Chat</h2>
+    </header>
+
+    <main id="chat-box"></main>
+
+    <div class="input-area">
+      <input type="text" id="messageInput" placeholder="Type your message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <!-- Ask for Username -->
+  <script>
+    const username = prompt("Enter your name:");
+  </script>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const input = document.getElementById("messageInput");
+    const chatBox = document.getElementById("chat-box");
+    socket.on("chat-history", (messages) => {
+  messages.forEach((msg) => {
+    const type = msg.username === username ? "self" : "other";
+    appendMessage(`${msg.username}: ${msg.text}`, type);
+  });
+});
+
+
+
+    function sendMessage() {
+      const text = input.value.trim();
+      if (text) {
+        socket.emit("chat-message", { username, text });
+        appendMessage(`You: ${text}`, "self");
+        input.value = "";
+      }
+    }
+
+    function appendMessage(message, type) {
+      const div = document.createElement("div");
+      div.className = `message ${type}`;
+      div.innerText = message;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    socket.on("chat-message", (data) => {
+      appendMessage(`${data.username}: ${data.text}`, "other");
+    });
+
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+  </script>
+</body>
+</html>
