@@ -1,41 +1,37 @@
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
-const path = require("path");
-const mongoose = require("mongoose");
-const Message = require("./models/Message");
+const cors = require("cors");
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+  cors: {
+    origin: "*",
+  },
+});
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(cors());
+app.use(express.json());
 
-mongoose.connect("mongodb://127.0.0.1:27017/chatapp", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB Error:", err));
+let sharedText = "";
 
-// When client connects
-io.on("connection", async (socket) => {
-  console.log("User connected:", socket.id);
+io.on("connection", (socket) => {
+  console.log("New client connected:", socket.id);
 
-  // Send chat history
-  const messages = await Message.find().sort({ timestamp: 1 }).limit(50);
-  socket.emit("chat-history", messages);
+  // Send current document
+  socket.emit("load-document", sharedText);
 
-  // Save and broadcast message
-  socket.on("chat-message", async (data) => {
-    const message = new Message({ username: data.username, text: data.text });
-    await message.save();
-    socket.broadcast.emit("chat-message", data);
+  // Update from user
+  socket.on("send-changes", (delta) => {
+    sharedText = delta;
+    socket.broadcast.emit("receive-changes", delta);
   });
 
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
+    console.log("Client disconnected:", socket.id);
   });
 });
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+const PORT = 5000;
+server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

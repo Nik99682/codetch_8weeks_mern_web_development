@@ -2,66 +2,122 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Real-Time Chat with Username</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Real-Time Collaboration Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f2f5;
+    }
+
+    h2 {
+      margin: 20px 0;
+    }
+
+    #editor {
+      width: 90%;
+      height: 200px;
+      font-family: monospace;
+      font-size: 16px;
+      padding: 10px;
+      border: 2px solid #999;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      background: #fff;
+    }
+
+    #chat {
+      width: 90%;
+      border: 2px solid #999;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    #chat-messages {
+      height: 150px;
+      overflow-y: auto;
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 10px;
+      padding: 5px;
+    }
+
+    #chat input {
+      width: 80%;
+      padding: 8px;
+    }
+
+    #chat button {
+      padding: 8px 12px;
+    }
+  </style>
 </head>
 <body>
-  <div class="chat-container">
-    <header>
-      <h2>💬 Real-Time Chat</h2>
-    </header>
 
-    <main id="chat-box"></main>
+  <h2>📝 Real-Time Collaboration Tool</h2>
 
-    <div class="input-area">
-      <input type="text" id="messageInput" placeholder="Type your message..." />
-      <button onclick="sendMessage()">Send</button>
-    </div>
+  <textarea id="editor" placeholder="Start typing collaboratively..."></textarea>
+
+  <div id="chat">
+    <div id="chat-messages"></div>
+    <input type="text" id="chatInput" placeholder="Type a message..." />
+    <button onclick="sendChat()">Send</button>
   </div>
-
-  <!-- Ask for Username -->
-  <script>
-    const username = prompt("Enter your name:");
-  </script>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
+    const username = prompt("Enter your name:");
     const socket = io();
-    const input = document.getElementById("messageInput");
-    const chatBox = document.getElementById("chat-box");
-    socket.on("chat-history", (messages) => {
-  messages.forEach((msg) => {
-    const type = msg.username === username ? "self" : "other";
-    appendMessage(`${msg.username}: ${msg.text}`, type);
-  });
-});
 
+    const editor = document.getElementById("editor");
+    const chatBox = document.getElementById("chat-messages");
+    const chatInput = document.getElementById("chatInput");
 
+    // Load initial document
+    socket.on("load-document", (text) => {
+      editor.value = text;
+    });
 
-    function sendMessage() {
-      const text = input.value.trim();
-      if (text) {
-        socket.emit("chat-message", { username, text });
-        appendMessage(`You: ${text}`, "self");
-        input.value = "";
+    // Receive real-time text changes
+    socket.on("receive-changes", (text) => {
+      editor.value = text;
+    });
+
+    // Send changes as user types
+    editor.addEventListener("input", () => {
+      socket.emit("send-changes", editor.value);
+    });
+
+    // Chat send
+    function sendChat() {
+      const message = chatInput.value.trim();
+      if (message) {
+        appendMessage("You: " + message, "self");
+        socket.emit("chat-message", { username, text: message });
+        chatInput.value = "";
       }
     }
 
-    function appendMessage(message, type) {
-      const div = document.createElement("div");
-      div.className = `message ${type}`;
-      div.innerText = message;
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
+    // Display incoming chat
     socket.on("chat-message", (data) => {
       appendMessage(`${data.username}: ${data.text}`, "other");
     });
 
-    input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
+    function appendMessage(msg, type) {
+      const div = document.createElement("div");
+      div.textContent = msg;
+      div.style.margin = "5px 0";
+      div.style.textAlign = type === "self" ? "right" : "left";
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    chatInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendChat();
     });
   </script>
 </body>
